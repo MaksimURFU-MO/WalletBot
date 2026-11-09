@@ -80,7 +80,7 @@ public class CurrencyBot extends TelegramLongPollingBot {
         }
     }
 
-    // --- Логика показа курса одной валюты (как было у вас раньше) ---
+    // --- Логика показа курса одной валюты (как было до этого) ---
     private void handleSingleCurrencyInfo(long chatId, String currencyCode) {
         try {
             Rate rate = currencyService.getRate(currencyCode);
