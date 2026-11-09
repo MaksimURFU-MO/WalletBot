@@ -26,7 +26,7 @@ public class Main {
 
             // 3. Запускаем Telegram-бота
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(new CurrencyBot(handler));
+            botsApi.registerBot(new CurrencyBot(currencyService, handler));
 
             System.out.println("✅ Бот успешно запущен! Идите в Telegram.");
         } catch (TelegramApiException e) {
