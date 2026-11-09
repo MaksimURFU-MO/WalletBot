@@ -1,5 +1,6 @@
 import bot.CurrencyBot;
 import bot.RateMessageHandler;
+import client.CachedRateSource;
 import client.CbrApiClient;
 import client.CbrJsonParser;
 import client.ParsedRateSource;
@@ -12,19 +13,18 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import service.CbrCurrencyService;
 import service.CurrencyService;
 
+import java.time.Duration;
+
 public class Main {
     public static void main(String[] args) {
         try {
-            // 1. Собираем слой данных
             RawDataSource apiClient = new CbrApiClient();
             RatesParser parser = new CbrJsonParser();
-            RateSource rateSource = new ParsedRateSource(apiClient, parser);
+            RateSource rateSource = new CachedRateSource(
+                    new ParsedRateSource(apiClient, parser),
+                    Duration.ofHours(1));
             CurrencyService currencyService = new CbrCurrencyService(rateSource);
-
-            // 2. Общая логика ответов (её же использует консольный бот)
             RateMessageHandler handler = new RateMessageHandler(currencyService);
-
-            // 3. Запускаем Telegram-бота
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
             botsApi.registerBot(new CurrencyBot(handler));
 
