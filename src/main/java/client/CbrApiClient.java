@@ -10,7 +10,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-public class CbrApiClient implements RateSource {
+public class CbrApiClient implements RawDataSource {
 
     public static final URI DEFAULT_URI = URI.create("https://www.cbr-xml-daily.ru/daily_json.js");
     private static final Duration TIMEOUT = Duration.ofSeconds(10);

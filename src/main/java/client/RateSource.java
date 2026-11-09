@@ -1,8 +1,11 @@
 package client;
 
-import java.io.IOException;
+import model.Rate;
+import service.CurrencyException;
+
+import java.util.Map;
 
 @FunctionalInterface
 public interface RateSource {
-    String fetch() throws IOException;
+    Map<String, Rate> fetch() throws CurrencyException;
 }

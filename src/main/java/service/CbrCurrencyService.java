@@ -1,11 +1,9 @@
 package service;
 
 import client.RateSource;
-import client.RatesParser;
 import model.Rate;
 import service.CurrencyException.Reason;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Locale;
@@ -16,11 +14,9 @@ public class CbrCurrencyService implements CurrencyService {
     private static final int SCALE = 4;
 
     private final RateSource source;
-    private final RatesParser parser;
 
-    public CbrCurrencyService(RateSource source, RatesParser parser) {
+    public CbrCurrencyService(RateSource source) {
         this.source = source;
-        this.parser = parser;
     }
 
     @Override
@@ -49,11 +45,7 @@ public class CbrCurrencyService implements CurrencyService {
     }
 
     private Map<String, Rate> loadRates() throws CurrencyException {
-        try {
-            return parser.parse(source.fetch());
-        } catch (IOException e) {
-            throw new CurrencyException(Reason.SOURCE_UNAVAILABLE, "Источник курсов недоступен", e);
-        }
+        return source.fetch();
     }
 
     private Rate findRate(Map<String, Rate> rates, String code) throws CurrencyException {

@@ -1,26 +1,23 @@
 package bot;
 
-import model.Rate;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import service.CurrencyException;
-import service.CurrencyService;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.io.InputStream;
 import java.util.Properties;
 
 public class CurrencyBot extends TelegramLongPollingBot {
 
-    private final CurrencyService currencyService;
+    private final RateMessageHandler handler;
 
-    public CurrencyBot(CurrencyService currencyService) {
-        this.currencyService = currencyService;
+    public CurrencyBot(RateMessageHandler handler) {
+        this.handler = handler;
     }
 
     @Override
@@ -31,23 +28,8 @@ public class CurrencyBot extends TelegramLongPollingBot {
 
             if (messageText.equalsIgnoreCase("/start")) {
                 sendStartMessage(chatId);
-            } else if (messageText.length() != 3) {
-                sendMessage(chatId, "Пожалуйста, введи 3-буквенный код валюты (например, USD).");
             } else {
-                try {
-                    Rate rate = currencyService.getRate(messageText.toUpperCase());
-
-                    String response = String.format("Курс %s (%s): %s руб. за %d ед.",
-                            rate.code(), rate.name(), rate.value().toPlainString(), rate.nominal());
-
-                    sendMessage(chatId, response);
-                } catch (CurrencyException e) {
-                    if (e.getReason() == CurrencyException.Reason.UNKNOWN_CURRENCY) {
-                        sendMessage(chatId, "Валюта " + messageText.toUpperCase() + " не найдена.");
-                    } else {
-                        sendMessage(chatId, "Ошибка получения данных из сети: " + e.getMessage());
-                    }
-                }
+                sendMessage(chatId, handler.handle(messageText));
             }
         }
     }

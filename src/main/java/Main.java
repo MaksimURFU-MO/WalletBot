@@ -1,8 +1,11 @@
 import bot.CurrencyBot;
+import bot.RateMessageHandler;
 import client.CbrApiClient;
 import client.CbrJsonParser;
+import client.ParsedRateSource;
 import client.RateSource;
 import client.RatesParser;
+import client.RawDataSource;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -13,13 +16,17 @@ public class Main {
     public static void main(String[] args) {
         try {
             // 1. Собираем слой данных
-            RateSource apiClient = new CbrApiClient();
+            RawDataSource apiClient = new CbrApiClient();
             RatesParser parser = new CbrJsonParser();
-            CurrencyService currencyService = new CbrCurrencyService(apiClient, parser);
+            RateSource rateSource = new ParsedRateSource(apiClient, parser);
+            CurrencyService currencyService = new CbrCurrencyService(rateSource);
 
-            // 2. Запускаем Telegram-бота
+            // 2. Общая логика ответов (её же использует консольный бот)
+            RateMessageHandler handler = new RateMessageHandler(currencyService);
+
+            // 3. Запускаем Telegram-бота
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(new CurrencyBot(currencyService));
+            botsApi.registerBot(new CurrencyBot(handler));
 
             System.out.println("✅ Бот успешно запущен! Идите в Telegram.");
         } catch (TelegramApiException e) {
