@@ -1,7 +1,8 @@
 package client;
 
-import org.junit.jupiter.api.Test;
+import model.Currency;
 import model.Rate;
+import org.junit.jupiter.api.Test;
 import service.CurrencyException;
 import service.CurrencyException.Reason;
 
@@ -31,9 +32,9 @@ public class CbrJsonParserTest {
 
     @Test
     void parsesCurrencies() throws CurrencyException {
-        Map<String, Rate> rates = parser.parse(SAMPLE);
+        Map<Currency, Rate> rates = parser.parse(SAMPLE);
 
-        Rate usd = rates.get("USD");
+        Rate usd = rates.get(Currency.USD);
         assertEquals("Доллар США", usd.name());
         assertEquals(0, new BigDecimal("80.5").compareTo(usd.value()));
         assertEquals(1, usd.nominal());
@@ -42,12 +43,12 @@ public class CbrJsonParserTest {
 
     @Test
     void keepsNominalForCurrenciesQuotedPerHundred() throws CurrencyException {
-        assertEquals(100, parser.parse(SAMPLE).get("JPY").nominal());
+        assertEquals(100, parser.parse(SAMPLE).get(Currency.JPY).nominal());
     }
 
     @Test
     void addsRubleWithRateOne() throws CurrencyException {
-        Rate rub = parser.parse(SAMPLE).get("RUB");
+        Rate rub = parser.parse(SAMPLE).get(Currency.RUB);
 
         assertEquals(0, BigDecimal.ONE.compareTo(rub.value()));
         assertEquals(1, rub.nominal());
@@ -88,34 +89,34 @@ public class CbrJsonParserTest {
 
     @Test
     void returnsEveryCurrencyFromSourcePlusRuble() throws CurrencyException {
-        assertEquals(Set.of("USD", "JPY", "RUB"), parser.parse(SAMPLE).keySet());
+        assertEquals(Set.of(Currency.USD, Currency.JPY, Currency.RUB), parser.parse(SAMPLE).keySet());
     }
 
     @Test
     void emptyValuteSectionGivesOnlyRuble() throws CurrencyException {
-        Map<String, Rate> rates = parser.parse("{\"Date\": \"2026-10-24T11:30:00+03:00\", \"Valute\": {}}");
+        Map<Currency, Rate> rates = parser.parse("{\"Date\": \"2026-10-24T11:30:00+03:00\", \"Valute\": {}}");
 
-        assertEquals(Set.of("RUB"), rates.keySet());
+        assertEquals(Set.of(Currency.RUB), rates.keySet());
     }
 
     @Test
     void normalizesCurrencyCodeToUpperCase() throws CurrencyException {
-        Map<String, Rate> rates = parser.parse("""
+        Map<Currency, Rate> rates = parser.parse("""
                 {"Date": "2026-10-24T11:30:00+03:00",
                  "Valute": {"usd": {"CharCode": "usd", "Nominal": 1, "Name": "Доллар США", "Value": 80.5}}}
                 """);
 
-        assertEquals("USD", rates.get("USD").code());
+        assertEquals("USD", rates.get(Currency.USD).code());
     }
 
     @Test
     void keepsDecimalPrecisionOfValue() throws CurrencyException {
-        Map<String, Rate> rates = parser.parse("""
+        Map<Currency, Rate> rates = parser.parse("""
                 {"Date": "2026-10-24T11:30:00+03:00",
                  "Valute": {"USD": {"CharCode": "USD", "Nominal": 1, "Name": "X", "Value": 80.1234}}}
                 """);
 
-        assertEquals(0, new BigDecimal("80.1234").compareTo(rates.get("USD").value()));
+        assertEquals(0, new BigDecimal("80.1234").compareTo(rates.get(Currency.USD).value()));
     }
 
     @Test

@@ -1,9 +1,10 @@
 package service;
 
+import model.Currency;
 import model.Rate;
 import java.math.BigDecimal;
 
 public interface CurrencyService {
-    Rate getRate(String currencyCode) throws CurrencyException;
-    BigDecimal convert(BigDecimal amount, String fromCode, String toCode) throws CurrencyException;
+    Rate getRate(Currency currencyCode) throws CurrencyException;
+    BigDecimal convert(BigDecimal amount, Currency fromCode, Currency toCode) throws CurrencyException;
 }

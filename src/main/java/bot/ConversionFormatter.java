@@ -1,5 +1,7 @@
 package bot;
 
+import model.Currency;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -47,7 +49,7 @@ public class ConversionFormatter {
         return DATE.format(instant);
     }
 
-    public String conversion(BigDecimal amount, String from, String to, BigDecimal result, Instant date) {
+    public String conversion(BigDecimal amount, Currency from, Currency to, BigDecimal result, Instant date) {
         return "💱 " + amount(amount) + " " + from + " = " + money(result) + " " + to
                 + "\n\nКурсы ЦБ РФ на " + date(date);
     }

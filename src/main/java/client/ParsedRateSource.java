@@ -1,6 +1,7 @@
 package client;
 
 import model.Rate;
+import model.Currency;
 import service.CurrencyException;
 import service.CurrencyException.Reason;
 
@@ -18,7 +19,7 @@ public class ParsedRateSource implements RateSource {
     }
 
     @Override
-    public Map<String, Rate> fetch() throws CurrencyException {
+    public Map<Currency, Rate> fetch() throws CurrencyException {
         try {
             return parser.parse(raw.fetch());
         } catch (IOException e) {

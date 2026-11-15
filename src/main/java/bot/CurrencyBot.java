@@ -1,5 +1,6 @@
 package bot;
 
+import model.Currency;
 import model.Rate;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -41,18 +42,20 @@ public class CurrencyBot extends TelegramLongPollingBot {
 
             // 1. Сначала проверяем, является ли сообщение запросом на конвертацию (например, "100 USD RUB")
             Optional<ConversionRequest> requestOpt = ConversionRequest.parse(messageText);
-
             if (requestOpt.isPresent()) {
                 handleConversion(chatId, requestOpt.get());
+                return;
             }
-            // 2. Если это не конвертация, проверяем, вдруг это просто 3-буквенный код (например, "USD")
-            else if (messageText.length() == 3) {
-                handleSingleCurrencyInfo(chatId, messageText.toUpperCase());
+
+            // 2. Проверяем, не является ли сообщение кодом одной валюты (например, "USD")
+            Optional<Currency> singleCurrencyOpt = Currency.fromCode(messageText);
+            if (singleCurrencyOpt.isPresent()) {
+                handleSingleCurrencyInfo(chatId, singleCurrencyOpt.get());
+                return;
             }
+
             // 3. Если ничего не подошло
-            else {
-                sendMessage(chatId, "Не понял команду. Введи код валюты (например, USD) или запрос на конвертацию (например, 100 USD RUB).");
-            }
+            sendMessage(chatId, "Не понял команду. Введи код валюты (например, USD) или запрос на конвертацию (например, 100 USD RUB).");
         }
     }
 
@@ -80,16 +83,16 @@ public class CurrencyBot extends TelegramLongPollingBot {
         }
     }
 
-    // --- Логика показа курса одной валюты (как было до этого) ---
-    private void handleSingleCurrencyInfo(long chatId, String currencyCode) {
+    // --- Логика показа курса одной валюты ---
+    private void handleSingleCurrencyInfo(long chatId, Currency currency) {
         try {
-            Rate rate = currencyService.getRate(currencyCode);
+            Rate rate = currencyService.getRate(currency);
             String response = String.format("Курс %s (%s): %s руб. за %d ед.",
                     rate.code(), rate.name(), rate.value().toPlainString(), rate.nominal());
             sendMessage(chatId, response);
         } catch (CurrencyException e) {
             if (e.getReason() == CurrencyException.Reason.UNKNOWN_CURRENCY) {
-                sendMessage(chatId, "Валюта " + currencyCode + " не найдена.");
+                sendMessage(chatId, "Валюта " + currency.name() + " не найдена.");
             } else {
                 sendMessage(chatId, "Ошибка получения данных из сети: " + e.getMessage());
             }

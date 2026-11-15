@@ -1,5 +1,6 @@
 package service;
 
+import model.Currency;
 import model.Rate;
 import org.junit.jupiter.api.Test;
 import service.CurrencyException.Reason;
@@ -18,23 +19,23 @@ class CbrCurrencyServiceLambdaTest {
 
     /** Сервис, у которого «ЦБ» всегда отдаёт доллар и рубль. */
     private final CbrCurrencyService service = new CbrCurrencyService(
-            () -> Map.of("USD", USD, "RUB", Rate.rub(DATE)));
+            () -> Map.of(Currency.USD, USD, Currency.RUB, Rate.rub(DATE)));
 
     @Test
     void getRateReturnsRateFromSource() throws CurrencyException {
-        assertEquals(USD, service.getRate("USD"));
+        assertEquals(USD, service.getRate(Currency.USD));
     }
 
     @Test
     void convertsUsdToRub() throws CurrencyException {
-        BigDecimal result = service.convert(new BigDecimal("100"), "USD", "RUB");
+        BigDecimal result = service.convert(new BigDecimal("100"), Currency.USD, Currency.RUB);
 
         assertEquals(0, new BigDecimal("8050").compareTo(result));
     }
 
     @Test
     void unknownCurrencyIsReported() {
-        CurrencyException e = assertThrows(CurrencyException.class, () -> service.getRate("XXX"));
+        CurrencyException e = assertThrows(CurrencyException.class, () -> service.getRate(Currency.EUR));
 
         assertEquals(Reason.UNKNOWN_CURRENCY, e.getReason());
     }
@@ -46,7 +47,7 @@ class CbrCurrencyServiceLambdaTest {
             throw original;
         });
 
-        CurrencyException thrown = assertThrows(CurrencyException.class, () -> broken.getRate("USD"));
+        CurrencyException thrown = assertThrows(CurrencyException.class, () -> broken.getRate(Currency.USD));
 
         assertSame(original, thrown);
     }
