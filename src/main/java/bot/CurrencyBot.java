@@ -1,22 +1,31 @@
 package bot;
 
+import model.Currency;
+import model.Rate;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import service.CurrencyException;
+import service.CurrencyService;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 public class CurrencyBot extends TelegramLongPollingBot {
 
+    private final ConversionFormatter formatter = new ConversionFormatter();
+    private final CurrencyService currencyService;
     private final RateMessageHandler handler;
 
-    public CurrencyBot(RateMessageHandler handler) {
+    public CurrencyBot(CurrencyService currencyService, RateMessageHandler handler) {
+        this.currencyService = currencyService;
         this.handler = handler;
     }
 
@@ -28,8 +37,64 @@ public class CurrencyBot extends TelegramLongPollingBot {
 
             if (messageText.equalsIgnoreCase("/start")) {
                 sendStartMessage(chatId);
+                return;
+            }
+
+            // 1. Сначала проверяем, является ли сообщение запросом на конвертацию (например, "100 USD RUB")
+            Optional<ConversionRequest> requestOpt = ConversionRequest.parse(messageText);
+            if (requestOpt.isPresent()) {
+                handleConversion(chatId, requestOpt.get());
+                return;
+            }
+
+            // 2. Проверяем, не является ли сообщение кодом одной валюты (например, "USD")
+            Optional<Currency> singleCurrencyOpt = Currency.fromCode(messageText);
+            if (singleCurrencyOpt.isPresent()) {
+                handleSingleCurrencyInfo(chatId, singleCurrencyOpt.get());
+                return;
+            }
+
+            // 3. Если ничего не подошло
+            sendMessage(chatId, "Не понял команду. Введи код валюты (например, USD) или запрос на конвертацию (например, 100 USD RUB).");
+        }
+    }
+
+    // --- Логика конвертации ---
+    private void handleConversion(long chatId, ConversionRequest req) {
+        try {
+            BigDecimal result = currencyService.convert(req.amount(), req.from(), req.to());
+            Rate toRate = currencyService.getRate(req.to());
+
+            String reply = formatter.conversion(
+                    req.amount(),
+                    req.from(),
+                    req.to(),
+                    result,
+                    toRate.date()
+            );
+            sendMessage(chatId, reply);
+
+        } catch (CurrencyException e) {
+            if (e.getReason() == CurrencyException.Reason.UNKNOWN_CURRENCY) {
+                sendMessage(chatId, "❌ Ошибка: " + e.getMessage());
             } else {
-                sendMessage(chatId, handler.handle(messageText));
+                sendMessage(chatId, "❌ Ошибка сервиса: " + e.getMessage());
+            }
+        }
+    }
+
+    // --- Логика показа курса одной валюты ---
+    private void handleSingleCurrencyInfo(long chatId, Currency currency) {
+        try {
+            Rate rate = currencyService.getRate(currency);
+            String response = String.format("Курс %s (%s): %s руб. за %d ед.",
+                    rate.code(), rate.name(), rate.value().toPlainString(), rate.nominal());
+            sendMessage(chatId, response);
+        } catch (CurrencyException e) {
+            if (e.getReason() == CurrencyException.Reason.UNKNOWN_CURRENCY) {
+                sendMessage(chatId, "Валюта " + currency.name() + " не найдена.");
+            } else {
+                sendMessage(chatId, "Ошибка получения данных из сети: " + e.getMessage());
             }
         }
     }
@@ -37,7 +102,7 @@ public class CurrencyBot extends TelegramLongPollingBot {
     private void sendStartMessage(long chatId) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
-        message.setText("Привет! Я бот для курсов валют. Выбери валюту ниже или напиши её код:");
+        message.setText("Привет! Я бот для курсов валют. Выбери валюту ниже или напиши запрос, например:\n100 USD RUB\n50 EUR в CNY");
 
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setResizeKeyboard(true);

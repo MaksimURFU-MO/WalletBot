@@ -1,12 +1,12 @@
 package service;
 
 import client.RateSource;
+import model.Currency;
 import model.Rate;
 import service.CurrencyException.Reason;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Locale;
 import java.util.Map;
 
 public class CbrCurrencyService implements CurrencyService {
@@ -20,18 +20,18 @@ public class CbrCurrencyService implements CurrencyService {
     }
 
     @Override
-    public Rate getRate(String currencyCode) throws CurrencyException {
-        return findRate(loadRates(), currencyCode);
+    public Rate getRate(Currency currency) throws CurrencyException {
+        return findRate(loadRates(), currency);
     }
 
     @Override
-    public BigDecimal convert(BigDecimal amount, String fromCode, String toCode) throws CurrencyException {
+    public BigDecimal convert(BigDecimal amount, Currency fromCurrency, Currency toCurrency) throws CurrencyException {
         if (amount == null || amount.signum() < 0) {
             throw new CurrencyException(Reason.INVALID_AMOUNT, "Сумма должна быть неотрицательной");
         }
-        Map<String, Rate> rates = loadRates();
-        Rate from = findRate(rates, fromCode);
-        Rate to = findRate(rates, toCode);
+        Map<Currency, Rate> rates = loadRates();
+        Rate from = findRate(rates, fromCurrency);
+        Rate to = findRate(rates, toCurrency);
         return calculate(amount, from, to);
     }
 
@@ -44,15 +44,17 @@ public class CbrCurrencyService implements CurrencyService {
         return numerator.divide(denominator, SCALE, RoundingMode.HALF_UP);
     }
 
-    private Map<String, Rate> loadRates() throws CurrencyException {
+    private Map<Currency, Rate> loadRates() throws CurrencyException {
         return source.fetch();
     }
 
-    private Rate findRate(Map<String, Rate> rates, String code) throws CurrencyException {
-        String normalized = code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
-        Rate rate = rates.get(normalized);
+    private Rate findRate(Map<Currency, Rate> rates, Currency currency) throws CurrencyException {
+        if (currency == null) {
+            throw new CurrencyException(Reason.UNKNOWN_CURRENCY, "Валюта не указана");
+        }
+        Rate rate = rates.get(currency);
         if (rate == null) {
-            throw new CurrencyException(Reason.UNKNOWN_CURRENCY, "Неизвестная валюта: " + code);
+            throw new CurrencyException(Reason.UNKNOWN_CURRENCY, "Неизвестная валюта: " + currency.name());
         }
         return rate;
     }
