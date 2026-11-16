@@ -1,11 +1,17 @@
 package client;
 
-import model.Rate;
 import model.Currency;
+import model.Rate;
 import service.CurrencyException;
 
+import java.time.LocalDate;
 import java.util.Map;
-@FunctionalInterface
+
 public interface RateSource {
-    Map<Currency, Rate> fetch() throws CurrencyException;
+
+    default Map<Currency, Rate> fetch() throws CurrencyException {
+        return fetch(LocalDate.now());
+    }
+
+    Map<Currency, Rate> fetch(LocalDate date) throws CurrencyException;
 }
