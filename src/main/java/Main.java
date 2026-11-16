@@ -1,37 +1,25 @@
-import bot.CurrencyBot;
+import app.AppFactory;
+import bot.BotRunner;
+import bot.ConsoleBot;
 import bot.RateMessageHandler;
-import client.CachedRateSource;
-import client.CbrApiClient;
-import client.CbrJsonParser;
-import client.ParsedRateSource;
-import client.RateSource;
-import client.RatesParser;
-import client.RawDataSource;
-import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
-import service.CbrCurrencyService;
-import service.CurrencyService;
-
-import java.time.Duration;
+import bot.TelegramRunner;
 
 public class Main {
-    public static void main(String[] args) {
-        try {
-            RawDataSource apiClient = new CbrApiClient();
-            RatesParser parser = new CbrJsonParser();
-            RateSource rateSource = new CachedRateSource(
-                    new ParsedRateSource(apiClient, parser),
-                    Duration.ofHours(1));
-            CurrencyService currencyService = new CbrCurrencyService(rateSource);
-            RateMessageHandler handler = new RateMessageHandler(currencyService);
-            TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(new CurrencyBot(currencyService, handler));
 
-            System.out.println("✅ Бот успешно запущен! Идите в Telegram.");
-        } catch (TelegramApiException e) {
-            System.err.println("❌ Ошибка запуска: " + e.getMessage());
-            e.printStackTrace();
+    public static void main(String[] args) {
+        String mode = args.length > 0 ? args[0].trim().toLowerCase() : "telegram";
+        RateMessageHandler handler = AppFactory.createHandler();
+
+        BotRunner runner;
+        switch (mode) {
+            case "console" -> runner = new ConsoleBot(handler);
+            case "telegram" -> runner = new TelegramRunner(handler);
+            default -> {
+                System.err.println("Неизвестный режим: " + mode);
+                System.err.println("Используй console или telegram");
+                return;
+            }
         }
+        runner.run();
     }
 }

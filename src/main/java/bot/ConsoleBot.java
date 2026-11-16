@@ -2,7 +2,7 @@ package bot;
 
 import java.util.Scanner;
 
-public class ConsoleBot {
+public class ConsoleBot implements BotRunner {
 
     private final RateMessageHandler handler;
 
@@ -10,15 +10,16 @@ public class ConsoleBot {
         this.handler = handler;
     }
 
+    @Override
     public void run() {
         System.out.println("Консольный бот курсов валют.");
-        System.out.println("Введи 3-буквенный код валюты: USD, EUR, CNY. Для выхода: exit");
+        System.out.println("Введи код валюты (например, USD) или конвертацию (например, 100 USD RUB). Для выхода: exit");
 
         try (Scanner scanner = new Scanner(System.in)) {
             while (true) {
                 System.out.print("> ");
                 if (!scanner.hasNextLine()) {
-                    break;                                   // ввод закрыт
+                    break;
                 }
                 String line = scanner.nextLine().trim();
 
