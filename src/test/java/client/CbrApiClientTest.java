@@ -1,17 +1,23 @@
 package client;
 
 import com.sun.net.httpserver.HttpServer;
+import model.Currency;
+import model.Rate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import service.CurrencyException;
+import service.CurrencyException.Reason;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,6 +26,26 @@ import static org.junit.jupiter.api.Assertions.*;
  * Тесты клиента на локальном HTTP-сервере из JDK: интернет и настоящий ЦБ не нужны.
  */
 class CbrApiClientTest {
+
+    private static final String SAMPLE_JSON = """
+            {
+              "Date": "2026-11-16T11:30:00+03:00",
+              "PreviousDate": "2026-11-15T11:30:00+03:00",
+              "PreviousURL": "//www.cbr-xml-daily.ru/archive/2026/11/15/daily_json.js",
+              "Timestamp": "2026-11-16T18:00:00+03:00",
+              "Valute": {
+                "USD": {
+                  "ID": "R01235",
+                  "NumCode": "840",
+                  "CharCode": "USD",
+                  "Nominal": 1,
+                  "Name": "Доллар США",
+                  "Value": 90.5,
+                  "Previous": 90.0
+                }
+              }
+            }
+            """;
 
     private HttpServer server;
     private final AtomicReference<String> lastMethod = new AtomicReference<>();
@@ -57,22 +83,29 @@ class CbrApiClientTest {
     }
 
     @Test
-    void returnsBodyOfSuccessfulResponse() throws IOException {
-        respond(200, "{\"Valute\": {}}", "application/json");
+    void returnsParsedRatesOfSuccessfulResponse() throws CurrencyException {
+        respond(200, SAMPLE_JSON, "application/json");
 
-        assertEquals("{\"Valute\": {}}", client().fetch());
+        Map<Currency, Rate> rates = client().fetch();
+
+        assertTrue(rates.containsKey(Currency.USD));
+        Rate usd = rates.get(Currency.USD);
+        assertEquals(1, usd.nominal());
+        assertEquals(new BigDecimal("90.5"), usd.value());
     }
 
     @Test
-    void decodesCyrillicAsUtf8() throws IOException {
-        respond(200, "Доллар США", null);
+    void decodesCyrillicAsUtf8() throws CurrencyException {
+        respond(200, SAMPLE_JSON, null);
 
-        assertEquals("Доллар США", client().fetch());
+        Map<Currency, Rate> rates = client().fetch();
+
+        assertEquals("Доллар США", rates.get(Currency.USD).name());
     }
 
     @Test
-    void sendsGetRequestToConfiguredPath() throws IOException {
-        respond(200, "ok", null);
+    void sendsGetRequestToConfiguredPath() throws CurrencyException {
+        respond(200, SAMPLE_JSON, null);
 
         client().fetch();
 
@@ -81,20 +114,22 @@ class CbrApiClientTest {
     }
 
     @Test
-    void notFoundIsReportedAsIOExceptionWithStatus() {
+    void notFoundIsReportedAsCurrencyExceptionWithStatus() {
         respond(404, "нет такой страницы", null);
 
-        IOException e = assertThrows(IOException.class, () -> client().fetch());
+        CurrencyException e = assertThrows(CurrencyException.class, () -> client().fetch());
 
+        assertEquals(Reason.SOURCE_UNAVAILABLE, e.getReason());
         assertTrue(e.getMessage().contains("404"));
     }
 
     @Test
-    void serverErrorIsReportedAsIOExceptionWithStatus() {
+    void serverErrorIsReportedAsCurrencyExceptionWithStatus() {
         respond(500, "ошибка", null);
 
-        IOException e = assertThrows(IOException.class, () -> client().fetch());
+        CurrencyException e = assertThrows(CurrencyException.class, () -> client().fetch());
 
+        assertEquals(Reason.SOURCE_UNAVAILABLE, e.getReason());
         assertTrue(e.getMessage().contains("500"));
     }
 
@@ -106,13 +141,14 @@ class CbrApiClientTest {
             exchange.close();
         });
 
-        IOException e = assertThrows(IOException.class, () -> client().fetch());
+        CurrencyException e = assertThrows(CurrencyException.class, () -> client().fetch());
 
+        assertEquals(Reason.SOURCE_UNAVAILABLE, e.getReason());
         assertTrue(e.getMessage().contains("302"));
     }
 
     @Test
-    void unreachableServerIsIOException() throws IOException {
+    void unreachableServerIsCurrencyException() throws IOException {
         int freePort;
         try (ServerSocket socket = new ServerSocket(0)) {
             freePort = socket.getLocalPort();
@@ -120,19 +156,28 @@ class CbrApiClientTest {
         URI uri = URI.create("http://127.0.0.1:" + freePort + "/daily_json.js");
         CbrApiClient unreachable = new CbrApiClient(HttpClient.newHttpClient(), uri);
 
-        assertThrows(IOException.class, unreachable::fetch);
+        CurrencyException e = assertThrows(CurrencyException.class, unreachable::fetch);
+        assertEquals(Reason.SOURCE_UNAVAILABLE, e.getReason());
     }
 
     @Test
-    void interruptedThreadGetsIOExceptionAndKeepsInterruptFlag() {
-        respond(200, "ok", null);
+    void interruptedThreadGetsCurrencyExceptionAndKeepsInterruptFlag() {
+        respond(200, SAMPLE_JSON, null);
         Thread.currentThread().interrupt();
         try {
-            assertThrows(IOException.class, () -> client().fetch());
+            CurrencyException e = assertThrows(CurrencyException.class, () -> client().fetch());
+            assertEquals(Reason.SOURCE_UNAVAILABLE, e.getReason());
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {
-            Thread.interrupted(); // сбросить флаг, чтобы не сломать другие тесты
+            Thread.interrupted();
         }
+    }
+
+    @Test
+    void invalidJsonFromServerThrowsCurrencyException() {
+        respond(200, "не json вообще", "application/json");
+
+        assertThrows(CurrencyException.class, () -> client().fetch());
     }
 
     @Test

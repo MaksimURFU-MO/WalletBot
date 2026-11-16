@@ -3,11 +3,7 @@ package app;
 import bot.RateMessageHandler;
 import client.CachedRateSource;
 import client.CbrApiClient;
-import client.CbrJsonParser;
-import client.ParsedRateSource;
 import client.RateSource;
-import client.RatesParser;
-import client.RawDataSource;
 import service.CbrCurrencyService;
 import service.CurrencyService;
 
@@ -21,10 +17,9 @@ public final class AppFactory {
     }
 
     public static RateMessageHandler createHandler() {
-        RawDataSource raw = new CbrApiClient();
-        RatesParser parser = new CbrJsonParser();
-        RateSource source = new CachedRateSource(new ParsedRateSource(raw, parser), CACHE_TTL);
-        CurrencyService service = new CbrCurrencyService(source);
+        RateSource apiClient = new CbrApiClient();
+        RateSource cachedSource = new CachedRateSource(apiClient, CACHE_TTL);
+        CurrencyService service = new CbrCurrencyService(cachedSource);
         return new RateMessageHandler(service);
     }
 }
