@@ -7,6 +7,7 @@ import service.CurrencyException.Reason;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.Map;
 
 public class CbrCurrencyService implements CurrencyService {
@@ -20,8 +21,9 @@ public class CbrCurrencyService implements CurrencyService {
     }
 
     @Override
-    public Rate getRate(Currency currency) throws CurrencyException {
-        return findRate(loadRates(), currency);
+    public Rate getRate(Currency currency, LocalDate date) throws CurrencyException {
+        LocalDate targetDate = (date == null) ? LocalDate.now() : date;
+        return findRate(loadRates(targetDate), currency);
     }
 
     @Override
@@ -29,7 +31,7 @@ public class CbrCurrencyService implements CurrencyService {
         if (amount == null || amount.signum() < 0) {
             throw new CurrencyException(Reason.INVALID_AMOUNT, "Сумма должна быть неотрицательной");
         }
-        Map<Currency, Rate> rates = loadRates();
+        Map<Currency, Rate> rates = loadRates(LocalDate.now());
         Rate from = findRate(rates, fromCurrency);
         Rate to = findRate(rates, toCurrency);
         return calculate(amount, from, to);
@@ -44,8 +46,8 @@ public class CbrCurrencyService implements CurrencyService {
         return numerator.divide(denominator, SCALE, RoundingMode.HALF_UP);
     }
 
-    private Map<Currency, Rate> loadRates() throws CurrencyException {
-        return source.fetch();
+    private Map<Currency, Rate> loadRates(LocalDate date) throws CurrencyException {
+        return source.fetch(date);
     }
 
     private Rate findRate(Map<Currency, Rate> rates, Currency currency) throws CurrencyException {
