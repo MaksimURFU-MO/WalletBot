@@ -19,7 +19,7 @@ class CbrCurrencyServiceLambdaTest {
 
     /** Сервис, у которого «ЦБ» всегда отдаёт доллар и рубль. */
     private final CbrCurrencyService service = new CbrCurrencyService(
-            () -> Map.of(Currency.USD, USD, Currency.RUB, Rate.rub(DATE)));
+            date -> Map.of(Currency.USD, USD, Currency.RUB, Rate.rub(DATE)));
 
     @Test
     void getRateReturnsRateFromSource() throws CurrencyException {
@@ -43,7 +43,7 @@ class CbrCurrencyServiceLambdaTest {
     @Test
     void sourceFailureIsPassedThrough() {
         CurrencyException original = new CurrencyException(Reason.SOURCE_UNAVAILABLE, "ЦБ лежит");
-        CbrCurrencyService broken = new CbrCurrencyService(() -> {
+        CbrCurrencyService broken = new CbrCurrencyService(date -> {
             throw original;
         });
 

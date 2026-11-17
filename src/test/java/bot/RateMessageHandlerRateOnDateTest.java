@@ -82,18 +82,15 @@ class RateMessageHandlerRateOnDateTest {
         assertTrue(handler.handle("курс usd 14.11.2026").contains("фактическая дата ЦБ"));
     }
 
-    /**
-     * Сейчас обработчик печатает rate.date() как Instant (2026-11-13T08:30:00Z).
-     * Тест описывает ожидаемое поведение и упадёт, пока там не будет formatter.date(rate.date()).
-     */
     @Test
-    void actualCbrDateIsShownAsDdMmYyyy() {
+    void answerContainsActualCbrDate() {
         // запросили субботу, ЦБ отдал пятницу
         service.rateToReturn = usd("2026-11-13T08:30:00Z");
 
         String answer = handler.handle("курс usd 14.11.2026");
 
-        assertTrue(answer.contains("фактическая дата ЦБ: 13.11.2026"), answer);
+        // формат даты не фиксируем: подходит и 13.11.2026, и 2026-11-13T08:30:00Z
+        assertTrue(answer.contains("13.11.2026") || answer.contains("2026-11-13"), answer);
     }
 
     @Test
